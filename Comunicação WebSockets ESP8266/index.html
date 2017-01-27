@@ -1,0 +1,163 @@
+<html>
+<head>
+	<meta name="viewport" content="width=device-width, height=device-height">
+	<link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+	<link type="text/css" rel="stylesheet" href="css/materialize.min.css"  media="screen,projection"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+	<script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+	<script type="text/javascript" src="js/materialize.min.js"></script>
+
+
+<script type="text/javascript">
+
+var PosicaoInicial;
+var connection;
+
+function Conectar(){
+	var text = document.getElementById('ip').value;
+	ipValue = "ws://"+text+":81/";
+//	connection = new WebSocket('ws://192.168.1.32:81/', ['arduino']);
+ 	connection = new WebSocket(ipValue, ['arduino']);
+ 	events(connection);
+	LerEstado();
+};
+
+//-----------------------------------------------------------------
+
+function events(con){
+	con.onopen = function () {
+		console.log("CONECTADO");
+		LerEstado();
+	};
+
+	con.onerror = function (error) {
+		console.log('WebSocket Error '+ error);
+	};
+
+	con.onmessage = function (e) {
+		LerEstado();
+		var mensagem = e.data;
+		console.log('Recebido ESP8266: '+ mensagem);
+		var letra = mensagem.charAt(0);
+
+		if(letra == 'g'){
+			var numsStr = mensagem.replace(/[^0-9]/g,'');
+			console.log("Varlor ainda como char:"+numsStr);
+	    	PosicaoInicial = parseInt(numsStr);
+	    	console.log('Posição inical recebida: '+PosicaoInicial)
+	    	document.getElementById("ServoPosicao").value = PosicaoInicial;
+			document.getElementById("ServoPosicaoM").innerHTML= PosicaoInicial;
+		}
+	};
+
+	con.addEventListener("close", function(event) {
+	  var code = event.code;
+	  var reason = event.reason;
+	  var wasClean = event.wasClean;
+	  console.log("Código:"+code+"  wasClean:"+wasClean);
+	  LerEstado();
+	});
+};
+
+//-----------------------------------------------------------------
+
+function ServoPosicao(newValue){
+	LerEstado();
+    document.getElementById("ServoPosicaoM").innerHTML=newValue;
+    connection.send("x"+newValue);
+    if (connection.bufferedAmount < 5) {
+		document.getElementById('notificacao').innerHTML = "<a class='waves-effect orange lighten-1 btn-large'><i class='material-icons left'>message</i>Enviado</a>";
+	}
+	else {
+		console.log("Buffer: "+connection.bufferedAmount)
+		document.getElementById('notificacao').innerHTML = "<a class='waves-effect orange lighten-1 btn-large'><i class='material-icons left'>message</i>O dado nao foi enviado</a>";
+	}
+	LerBuffer();
+};
+	
+
+//-----------------------------------------------------------------
+
+function Disconnect(){
+	connection.close();
+	console.log('Desconectado');
+	LerEstado();
+};
+  
+//-----------------------------------------------------------------
+
+function LerEstado(){
+if(connection.readyState === connection.CONNECTING){
+   document.getElementById('estado').innerHTML = "<a class='waves-effect blue lighten-1 btn-large'><i class='material-icons left'>loop</i>CONECTANDO</a>";
+}else if(connection.readyState === connection.OPEN){
+   document.getElementById('estado').innerHTML = "<a class='waves-effect light-green btn-large'><i class='material-icons left'>loop</i>CONECTADO</a>";
+}else if(connection.readyState === connection.CLOSING){
+  document.getElementById('estado').innerHTML = "<a class='waves-effect deep-orange lighten-1 btn-large'><i class='material-icons left'>loop</i>DESCONECTANDO</a>";
+}else if(connection.readyState === connection.CLOSED){
+   document.getElementById('estado').innerHTML = "<a class='waves-effect red darken-3 btn-large'><i class='material-icons left'>loop</i>DESCONECTADO</a>";
+}
+};
+
+function LerBuffer(){
+	console.log("Buffer: "+connection.bufferedAmount)
+	var buff = connection.bufferedAmount;
+	document.getElementById('bufff').innerHTML = "<a class='waves-effect orange lighten-1 btn-large'><i class='material-icons left'>message</i>Buffer: "+buff+"</a>"
+};
+
+//-----------------------------------------------------------------
+
+function Fade(){
+	connection.send("r");
+	console.log("r");
+};
+
+
+</script>
+
+</head>
+<body style="height=100% width=100%">
+
+<nav>
+	<div class="nav-wrapper grey darken-3">
+	  <a href="#" class="brand-logo">CONTROLE VIA WEB SOCKETS</a>
+	  <ul id="nav-mobile" class="right hide-on-med-and-down">
+	  	<li><div id="bufff" onclick="LerBuffer()"><a class='waves-effect orange lighten-1 btn-large'><i class='material-icons left'>message</i>Buffer: --</a></a></div></li>
+	    <li><div id="notificacao"><a class='waves-effect orange lighten-1 btn-large'><i class='material-icons left'>message</i>Notifição</a></div></li>
+	    <li><div id="estado"><a class='waves-effect orange lighten-1 btn-large'><i class='material-icons left'>loop</i>ESTADO</a></div></li>
+	  </ul>
+	</div>
+</nav>	
+
+<div class="container center-align">
+	
+	<div class="row">
+	    <div class="col s12">
+	      <div class="card blue-grey darken-1">
+	        <div class="card-content white-text">
+	          <span class="card-title">Conexão</span>
+				<input type="text"  placeholder="Exemplo 192.168.1.100" id="ip"></tr>
+					<a class="waves-effect waves-light btn" onclick="Conectar()"><input type="button" >Conectar</a>
+					<a class="waves-effect waves-light btn" onclick="Disconnect()"><input type="button"  onclick="Disconnect()">Desconectar</a> 				              
+		    </div>
+	      </div>
+	    </div>
+	</div>
+
+
+
+	<div class="row">
+		<div class="col s12">
+	      <div class="card blue-grey darken-1">
+	        <div class="card-content white-text">
+	          <span class="card-title">Servo Motor</span><br>
+				<a class="waves-effect waves-light btn" onclick="Fade()"><input type="button" >Fade</a>
+				<div class="range-field"><input type="range" id= "ServoPosicao" min="0" max="180" value="0" step="10" oninput="ServoPosicao(this.value)"/></div>
+				<a class="waves-effect purple btn" id="ServoPosicaoM">0</a>
+			</div>
+		</div>
+	</div>
+
+
+</div>
+</body>
+</html>
